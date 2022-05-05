@@ -5,6 +5,7 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const HtmlWebpackHarddiskPlugin = require('html-webpack-harddisk-plugin');
 
 module.exports = {
+    devtool: 'source-map',
     entry: './src/javascripts/main.js',
     output: {
         path: path.resolve(__dirname, './dist'),
@@ -20,6 +21,18 @@ module.exports = {
     module: {
         rules: [
             {
+                test: /\.js/,
+                exclude: /node_modules/,
+                use: [
+                    {
+                        loader: 'babel-loader',
+                        options: {
+                            presets: ['@babel/preset-env'],
+                        },
+                    },
+                ],
+            },
+            {
                 // 対象となるファイルの拡張子(scssかsassかcss)
                 test: /\.(css|sass|scss)/,
                 // Sassファイルの読み込みとコンパイル
@@ -31,6 +44,9 @@ module.exports = {
                     // CSSをバンドルするためのローダー
                     {
                         loader: 'css-loader',
+                        options: {
+                            sourceMap: false,
+                        },
                     },
                     // PostCSS（autoprefixer）の設定
                     {
@@ -51,19 +67,21 @@ module.exports = {
                 ],
             },
             {
-                test: /\.(png|jpg)/,
+                test: /\.(png|jpg|jpeg)/,
                 type: 'asset/resource',
                 generator: {
                     filename: 'images/[name][ext]'
                 },
                 use: [
-                    // {
-                    //     loader: 'file-loader',
-                    //     options: {
-                    //         esModule: false,
-                    //         name: 'images/[name].[ext].png',
-                    //     },
-                    // },
+                    {
+                        loader: 'image-webpack-loader',
+                        options: {
+                            mozjpeg: {
+                                progressive: true,
+                                quality: 65,
+                            },
+                        },
+                    },
                 ],
             },
             {
