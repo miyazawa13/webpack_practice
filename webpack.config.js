@@ -1,15 +1,18 @@
-const path = require('path');
+const path = require('path'); //pathの読み込み
+const globule = require("globule"); //globule の読み込み
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const HtmlWebpackHarddiskPlugin = require('html-webpack-harddisk-plugin');
 
-module.exports = {
-    devtool: 'source-map',
-    entry: './src/javascripts/main.js',
+// 本番環境のときはsoucemapを出力させない設定
+const enabledSourceMap = process.env.NODE_ENV !== "production";
+
+const app = {
+    entry: './src/js/main.js',
     output: {
         path: path.resolve(__dirname, './dist'),
-        filename: 'javascripts/main.js',
+        filename: 'js/main.js',
     },
     mode: "development",
     //仮想サーバーの設定
@@ -45,24 +48,31 @@ module.exports = {
                     {
                         loader: 'css-loader',
                         options: {
-                            sourceMap: false,
+                            // production モードでなければソースマップを有効に
+                            sourceMap: enabledSourceMap,
                         },
                     },
                     // PostCSS（autoprefixer）の設定
                     {
                         loader: "postcss-loader",
                         options: {
-                        // production モードでなければソースマップを有効に
-                        // sourceMap: enabledSourceMap,
-                        postcssOptions: {
-                            // ベンダープレフィックスを自動付与
-                            plugins: [require("autoprefixer")({ grid: true })]
-                        }
-                        }
+                            // production モードでなければソースマップを有効に
+                            sourceMap: enabledSourceMap,
+                            postcssOptions: {
+                                // ベンダープレフィックスを自動付与
+                                plugins: [require("autoprefixer")({ grid: true })]
+                            },
+                        },
                     },
                     // Sass を CSS へ変換するローダー
                     {
                         loader: 'sass-loader',
+                        options: {
+                            // dart-sass を優先
+                            implementation: require("sass"),
+                            //  production モードでなければソースマップを有効に
+                            sourceMap: enabledSourceMap
+                        },
                     },
                 ],
             },
@@ -102,22 +112,36 @@ module.exports = {
     },
     plugins: [
         new MiniCssExtractPlugin({
-            filename: './stylesheets/main.css', // distの中にあるcssフォルダにstyle.cssを出力
+            filename: './css/main.css', // distの中にあるcssフォルダにstyle.cssを出力
         }),
-        new HtmlWebpackPlugin({
-            template: './src/templates/index.pug',
-            filename: 'index.html',
-            alwaysWriteToDisk: true,
-        }),
-        new HtmlWebpackPlugin({
-            template: './src/templates/access.pug',
-            filename: 'access.html',
-        }),
-        new HtmlWebpackPlugin({
-            template: './src/templates/members/taro.pug',
-            filename: 'members/taro.html',
-        }),
-        new HtmlWebpackHarddiskPlugin(), // HTMLファイル変更時にホットリロード
         new CleanWebpackPlugin(), // dist内の不要なファイルやフォルダを消す
     ],
+    //source-map タイプのソースマップを出力
+    devtool: false,
 }
+
+if (process.env.NODE_ENV !== 'production') {
+    module.exports.devtool = 'inline-source-map';
+}
+
+//srcフォルダからpngを探す
+const templates = globule.find("./src/templates/**/*.pug", {
+    ignore: ["./src/templates/**/_*.pug"]
+});
+
+//pugファイルがある分だけhtmlに変換する
+templates.forEach((template) => {
+    const fileName = template.replace("./src/templates/", "").replace(".pug", ".html");
+    app.plugins.push(
+        new HtmlWebpackPlugin({
+            filename: `${fileName}`,
+            template: template,
+            inject: false, //false, head, body, trueから選べる
+            minify: false, //本番環境でも圧縮しない
+            alwaysWriteToDisk: true,
+        }),
+        new HtmlWebpackHarddiskPlugin(), // HTMLファイル変更時にホットリロード
+    );
+});
+
+module.exports = app;
